@@ -14,6 +14,7 @@ INSTALLATION
     3. Start the VM.  Login with openflow/openflow.  
     4. Mount the Guest Additions disk image by selecting Devices>Install Guest Additions menu item in the VirtualBox menu bar.
     5. Inside the VM, type:
+	
 	```
     wget https://github.com/nemethf/sigcomm2012/raw/master/install_demo.sh
     sh ./install_demo.sh
