@@ -1,0 +1,47 @@
+Towards SmartFlow: Case Studies on Enhanced
+Programmable Forwarding in OpenFlow Switches
+
+* Stateless multicast with Bloom filters
+
+: mininet> controller bloom
+: mininet> vlc start
+: mininet> set_bloom_route h1 10.0.3.4 s5-s9-s8-s10-h4
+: mininet> set_bloom_route h1 10.0.3.4 s5-s9-s8-s10-h4 s9-h3
+: mininet> set_bloom_route h1 10.0.3.4 s5-s9-s8-s10-s6-s7-s8 s10-h4
+: mininet> set_bloom_route h1 10.0.3.4 s5-s9-s8-s10-s6-s7 s10-h4
+: mininet> vlc stop
+
+* Fix size routing tables with Greedy routing
+
+: mininet> controller greedy
+: mininet> xterm h1
+: ~# ping 10.0.0.4
+: mininet> link s7 s8  down
+: mininet> link s5 s9  down
+: mininet> link s8 s10 down
+: mininet> link s7 s8  up
+: mininet> link s5 s9  up
+: mininet> link s8 s10 up
+: ~# exit
+
+* 200% link utilization with Network Coding
+
+: mininet> controller mpls
+: mininet> vlc start
+: mininet> bottleneck 0.25
+: mininet> controller nc
+
+follow links by clicking on them. [[file:butterfly_app.cc::217][code]], [[~/of11softswitch.bme/udatapath/dp_exp_bme.c::209][dp_exp_bme.c]]
+
+: mininet> exit
+: ~$ sudo -E mn --custom ~/nox11oflib/src/nox/coreapps/butterfly_app/butterfly.py
+
+* Contact
+
+[[mailto:nemethf@tmit.bme.hu][nemethf@tmit.bme.hu]]
+[[http://sb.tmit.bme.hu/mediawiki/index.php/Sigcomm2012][Project page at http://sb.tmit.bme.hu/mediawiki/index.php/Sigcomm2012]]
+
+:HIDDEN:
+#+DRAWERS: HIDDEN
+#+STARTUP: showall
+:END:
