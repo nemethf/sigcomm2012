@@ -198,12 +198,25 @@ You can finish the demo with exiting:
 If you wish to restart the demo, open an xterm and type:
 : ~$ sudo -E mn --custom ~/nox11oflib/src/nox/coreapps/butterfly_app/butterfly.py
 
-follow links by clicking on them. [[file:butterfly_app.cc::217][NC_code]], [[~/of11softswitch.bme/udatapath/dp_exp_bme.c::209][dp_exp_bme.c]]
+To see a bit behind the scenes, you should first read our paper
+and its accompanying poster, then you can scan through various
+source codes.  You can follow the pink links by clicking on them.
 
+The implementation of greedy routing uses two _experimenter_
+actions: update-distance and output-by-metadata.  They are
+defined [[file:~/of11softswitch.bme/include/openflow/bme-ext.h::119][here]] and [[file:~/of11softswitch.bme/include/openflow/bme-ext.h::54][here]], and their very short implementations are
+[[~/of11softswitch.bme/udatapath/dp_exp_bme.c::761][here]], and [[~/of11softswitch.bme/udatapath/dp_exp_bme.c::209][here]].
 
+If you interested in the network coding scenario, first you
+should check out the simple [[file:butterfly_app.cc::87][MPLS based controller]].  The [[file:butterfly_app.cc::220][NC
+controller]] is almost the same, it just uses three MPLS headers
+and three experimenter actions: [[~/of11softswitch.bme/udatapath/dp_exp_bme.c::761][set_mpls_label_from_counter]],
+[[~/of11softswitch.bme/udatapath/dp_exp_bme.c::761][xor_encode, and xor_decode]].
+ 
 * Contact
 
 [[mailto:nemethf@tmit.bme.hu][nemethf@tmit.bme.hu]]
+
 [[http://sb.tmit.bme.hu/mediawiki/index.php/Sigcomm2012][Project page at http://sb.tmit.bme.hu/mediawiki/index.php/Sigcomm2012]]
 
 :HIDDEN:
