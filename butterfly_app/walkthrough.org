@@ -1,40 +1,205 @@
 Towards SmartFlow: Case Studies on Enhanced
 Programmable Forwarding in OpenFlow Switches
 
+* Welcome!
+
+This guide helps you in experiencing with or reenjoying the
+SmartFlow demo (presented at SIGCOMM 2012) in a fully virtualized
+setting.  This high level description lets you to feel the taste
+of discovery without getting your hands dirty in writing messy
+scripts or complex command lines.
+
+If you need more implementation details we suggest some digging
+in the source codes.  If you have questions don't hesitate to
+contact Felician Nemeth (nemethf@tmit.bme.hu).
+
+Good luck!
+
 * Stateless multicast with Bloom filters
 
+In this scenario you can experience with Bloom filter-based
+forwarding.  The links of the network are assigned with
+independent binary so called Bloom ID-s.  From these ID-s we
+create Bloom filters representing a path in the topology by
+bitwise ORing of the Bloom ID-s of the links constituting the
+path.  We can insert such filters into the packet headers (into
+the destination MAC address field) and the ofdatapath entities
+can test whether a given interface belongs to the path simply by
+checking if all bit positions that are set in the Bloom ID of the
+link are also set in the filter.
+
+First we start the bloom controller, which configures the OF
+switches in the network by adding the appropriate link codes to
+their flow tables.  After this configuration phase the routing
+works without controller supervision.
 : mininet> controller bloom
+
+The following command starts a video stream at host h1.
 : mininet> vlc start
+
+Within seconds two new windows will appear playing the video
+stream.
+
+You can observe the links with high traffic in the Traffic
+monitor window.  Hence, the red links depict the data paths of
+the video stream.  Note, however, the link h1-s5 colored blue
+instead of red.  That is because the Traffic monitor periodically
+collects the *output* statistics of the switches and colors a
+link with red when the link's traffic volume is above average.
+h1-s5 remains blue since traffic flows in link h1-s5 only towards
+s5.
+
+The video stream is sent to the IP address 10.0.3.4.  You can
+modify the ARP table of h1 with the following command.
 : mininet> set_bloom_route h1 10.0.3.4 s5-s9-s8-s10-h4
+
+The set_bloom_route command shows how it calculates the new MAC
+address (which is a Bloom filter): the bloom-ids of the links are
+ORed together.  A switch forwards a packet to a link if the
+link's bloom-id is contained in the Bloom filter residing in
+destination MAC address field of the packet header.
+
+Observe that traffic follows the given path (h1-s5-s9-s8-s10-h4),
+but the video stream has stopped at h3.  We can restart the
+stream at h3 by adding the bloom-id of link s9-h3 to the MAC
+address of 10.0.3.4 with the following mininet command.
 : mininet> set_bloom_route h1 10.0.3.4 s5-s9-s8-s10-h4 s9-h3
+
+
+Creating loops is not a good idea, but for the sake of curiosity,
+let's see what happens after issuing the following command.
 : mininet> set_bloom_route h1 10.0.3.4 s5-s9-s8-s10-s6-s7-s8 s10-h4
+
+Playback at h4 shows a low quality stream, so the data reaches
+h4, however only the s6-s7-s8-s10 loop is red in the traffic
+monitor.  It's no surprise since the traffic monitor colors links
+with load above average.
+
+Let's break the loop:
 : mininet> set_bloom_route h1 10.0.3.4 s5-s9-s8-s10-s6-s7 s10-h4
+
+And finally, stop the stream:
 : mininet> vlc stop
 
 * Fix size routing tables with Greedy routing
 
+In a greedy routing context the elements of the network are
+embedded into some metric space, which is the two dimensional
+Euclidean plane in our test topology.  The underlying metric
+space can be used for routing as a guideline to forward the
+packets to the right direction without explicit knowledge of the
+topology in a fully distributed manner.  In greedy routing the
+nodes forward packets towards their neighbors, which are the
+closest to the packets' destination in the metric space.
+
+First let's change the OpenFlow controller to greedy:
 : mininet> controller greedy
+
+Similarly to the previous case, the controller initially fills
+the flow tables of the switches (basically installs the
+coordinates of the neighbors), but it not used afterwards.
+
+Although the network topology hasn't changed, nodes in the
+traffic monitor are moved to their two dimensional coordinates.
+This makes easier to follow how greedy routing works.
+
+We can demonstrate the routing algorithm once again with a video
+stream, but now a simple ping is more exciting.  Let's open an
+xterm at h1:
 : mininet> xterm h1
+
+In the newly created window, ping h4:
 : ~# ping 10.0.0.4
+
+s5 has three active ports, so it has three choices where it can
+forward the ping request.  s7 and s9 are in the same distance
+from h4, so s5 forwards the ping request to s7 because s7's flow
+entry precedes s9's entry in the flow table of s5.  Situation is
+a bit more simpler at s7: s7 forwards the request to s8, since
+s8-h4 distance is the smallest among s5-h4, s6-h4, and s8-h4.
+Similarly, s8 forwards the packet to s10, and s10 delivers it to
+h4.  The return path is h4-s10-s8-s7-s5-h1.
+
+Now, let's see what happens the link s7-s8 fails:
 : mininet> link s7 s8  down
+
+Switches do not propagate error information, error correction
+happens locally and automatically.  When s5 decides where to
+forward the ping request it has only two choices left: s5 and s6.
+Since s6 is closer to h4 than s5 is, s5 forwards the packet to
+s6.  As a result the path of the ping request is
+h1-s5-s7-s6-s10-h4.  Similarly, the path of the ping reply is
+h4-s8-s9-s5-h1.
+
+Now let's pull another link down: 
 : mininet> link s5 s9  down
+
+As you can see in the xterm window, the pings stop.  s9 cannot
+find a way to h1 following the greedy principle.  Theoretically
+the h4-s10-s6-s7-s5-h1 return path is still available, but ping
+doesn't work with these greedy coordinates.  (With different
+_embedding_ it might work.)
+
+Let's fix the ping by further damaging the network with bringing
+one more link down:
 : mininet> link s8 s10 down
+
+Now s10 forwards the ping reply to s6 form where it can reach h1.
+
+Before continuing the demo, let's restore the links: 
 : mininet> link s7 s8  up
 : mininet> link s5 s9  up
 : mininet> link s8 s10 up
+
+Stop the ping in the xterm window by pressing control-c, and
+close the window:
 : ~# exit
 
 * 200% link utilization with Network Coding
 
+In the final scenario switches don't just forward data packets,
+but they may _mix_ their contents.  We demonstrate how efficient
+link utilization can be achieved by XOR-mixing two flows.
+
+Let's switch to a new controller:
 : mininet> controller mpls
+
+The controller pulls out the following four MPLS paths: s5-s9,
+s5-s7-s8-s10, s6-s10, s6-s7-s8-s9.  More precisely, the video
+stream sent from h1 to h3 is also sent to h4, and the video
+stream sent from h2 to h4 is also sent to h3.  You can check this
+by starting the video streams:
 : mininet> vlc start
-: mininet> bottleneck 0.25
+
+After a while, four windows appear.  The tiltes show the receiver
+and the sender as well, e.g., h4:2222 means the widow plays the
+h2's stream at h4.
+
+Due to the topology, link s7-s8 transmits two streams at the same
+time.  Now, let's decrease this link's capacity a bit:
+: mininet> bottleneck 0.26
+
+As you can see, the cross-path streams' qualities are drastically
+reduced.
+
+Start the controller that installs Network Coding encoding and
+decoding points:
 : mininet> controller nc
 
-follow links by clicking on them. [[file:butterfly_app.cc::217][code]], [[~/of11softswitch.bme/udatapath/dp_exp_bme.c::209][dp_exp_bme.c]]
+The link s7-s8 cannot transimit two streams in parallel, and yet
+the video qualities are restored. This is due to network coding 
+of the two streams at s7 and decoding them at s9 and s10. 
 
+* Internals
+
+You can finish the demo with exiting:
 : mininet> exit
+
+If you wish to restart the demo, open an xterm and type:
 : ~$ sudo -E mn --custom ~/nox11oflib/src/nox/coreapps/butterfly_app/butterfly.py
+
+follow links by clicking on them. [[file:butterfly_app.cc::217][NC_code]], [[~/of11softswitch.bme/udatapath/dp_exp_bme.c::209][dp_exp_bme.c]]
+
 
 * Contact
 
@@ -44,4 +209,8 @@ follow links by clicking on them. [[file:butterfly_app.cc::217][code]], [[~/of11
 :HIDDEN:
 #+DRAWERS: HIDDEN
 #+STARTUP: showall
+
+Local Variables:
+fill-column: 65
+End:
 :END:
