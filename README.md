@@ -23,8 +23,7 @@ INSTALLATION
 RUNNING THE DEMO
 ----------------
 
-Log in, type: `startx`, and follow the walk-through text appearing in the top-right corner.
-
+Log in, type: `startx`, and follow the [walkthrough text](https://github.com/nemethf/sigcomm2012/blob/master/butterfly_app/walkthrough.org) appearing in the top-right corner.
 
 CONTACT
 -------
