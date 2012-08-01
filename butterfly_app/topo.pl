@@ -28,7 +28,8 @@ use Goo::Canvas;
 use Gtk2 '-init';
 use Glib qw(TRUE FALSE);
 
-my $SILENT = 1;
+my $REMOTE = grep {/remote/} @ARGV;
+my $SILENT = scalar (grep {/verbose/} @ARGV) == 0;
 
 open PID, '>/tmp/traffic_monitor.pid';
 print PID $$;
@@ -72,6 +73,15 @@ my %ports = (
   's8' => ['s7', 's9', 's10'],
   's9' => ['h3', 's5', 's8'],
   's10' => ['h4', 's6', 's8'],
+);
+
+my %ip_addr = (
+  '192.168.213.35' => 's5',
+  '192.168.213.36' => 's6',
+  '192.168.213.37' => 's7',
+  '192.168.213.38' => 's8',
+  '192.168.213.39' => 's9',
+  '192.168.213.40' => 's10',
 );
 
 sub my_print {
@@ -187,10 +197,21 @@ sub get_stats {
   my $cmd = 'stats-port';
   my $var = 'tx_pkt';
 
-  for my $sw (@sw) {
-    next unless $sw =~ m|tmp/(s[0-9]+)$|;
-    my $node = $1;
-    open IN, "sudo dpctl unix:$sw $cmd|";
+  my @list = grep {/tmp\/(s[0-9]+)$/} @sw;
+  @list = keys %ip_addr
+    if $REMOTE;
+
+  for my $item (@list) {
+    my $node;
+    if ($REMOTE) {
+      $node = $ip_addr{$item};
+      my_print "dpctl tcp:$item $cmd ...\n";
+      open IN, "dpctl tcp:$item $cmd|";
+    } else {
+      next unless $item =~ m|tmp/(s[0-9]+)$|;
+      $node = $1;
+      open IN, "sudo dpctl unix:$item $cmd|";
+    }
     $db{$node} = {};
     while (<IN>) {
       my $line = $_;
