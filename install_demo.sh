@@ -92,3 +92,9 @@ EOF
 chmod u+x $WM_DIR/autostart
 INFO="You can start the demo by typing: startx"
 echo echo $INFO >> ~/.profile
+cat <<EOF
+
+Because of the newly installed VirtualBox Guest Additions, it's not a
+bad idea to reboot now, but otherwise the demo VM image is ready.
+
+EOF
