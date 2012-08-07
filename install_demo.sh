@@ -70,6 +70,7 @@ sudo make install
 #
 # misc
 #
+sudo rm -f /etc/udev/rules.d/70-persistent-net.rules
 cat <<EOF | sudo tee -a /etc/issue
 
 
