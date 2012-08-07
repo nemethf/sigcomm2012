@@ -38,16 +38,9 @@ The following command starts a video stream at host h1.
 : mininet> vlc start
 
 Within seconds two new windows will appear playing the video
-stream.
-
-You can observe the links with high traffic in the Traffic
-monitor window.  Hence, the red links depict the data paths of
-the video stream.  Note, however, the link h1-s5 colored blue
-instead of red.  That is because the Traffic monitor periodically
-collects the *output* statistics of the switches and colors a
-link with red when the link's traffic volume is above average.
-h1-s5 remains blue since traffic flows in link h1-s5 only towards
-s5.
+stream.  You can observe the links with high traffic in the
+Traffic monitor window.  Hence, the red links depict the data
+paths of the video stream.
 
 The video stream is sent to the IP address 10.0.3.4.  You can
 modify the ARP table of h1 with the following command.
@@ -97,7 +90,7 @@ First let's change the OpenFlow controller to greedy:
 
 Similarly to the previous case, the controller initially fills
 the flow tables of the switches (basically installs the
-coordinates of the neighbors), but it not used afterwards.
+coordinates of the neighbors), but it is not used afterwards.
 
 Although the network topology hasn't changed, nodes in the
 traffic monitor are moved to their two dimensional coordinates.
@@ -120,7 +113,7 @@ s8-h4 distance is the smallest among s5-h4, s6-h4, and s8-h4.
 Similarly, s8 forwards the packet to s10, and s10 delivers it to
 h4.  The return path is h4-s10-s8-s7-s5-h1.
 
-Now, let's see what happens the link s7-s8 fails:
+Now, let's see what happens if the link s7-s8 fails:
 : mininet> link s7 s8  down
 
 Switches do not propagate error information, error correction
@@ -138,13 +131,13 @@ As you can see in the xterm window, the pings stop.  s9 cannot
 find a way to h1 following the greedy principle.  Theoretically
 the h4-s10-s6-s7-s5-h1 return path is still available, but ping
 doesn't work with these greedy coordinates.  (With different
-_embedding_ it might work.)
+*embedding* it might work.)
 
 Let's fix the ping by further damaging the network with bringing
 one more link down:
 : mininet> link s8 s10 down
 
-Now s10 forwards the ping reply to s6 form where it can reach h1.
+Now s10 forwards the ping reply to s6 from where it can reach h1.
 
 Before continuing the demo, let's restore the links: 
 : mininet> link s7 s8  up
@@ -158,7 +151,7 @@ close the window:
 * 200% link utilization with Network Coding
 
 In the final scenario switches don't just forward data packets,
-but they may _mix_ their contents.  We demonstrate how efficient
+but they may *mix* their contents.  We demonstrate how efficient
 link utilization can be achieved by XOR-mixing two flows.
 
 Let's switch to a new controller:
@@ -202,16 +195,16 @@ To see a bit behind the scenes, you should first read our paper
 and its accompanying poster, then you can scan through various
 source codes.  You can follow the pink links by clicking on them.
 
-The implementation of greedy routing uses two _experimenter_
+The implementation of greedy routing uses two *experimenter*
 actions: update-distance and output-by-metadata.  They are
 defined [[file:~/of11softswitch.bme/include/openflow/bme-ext.h::119][here]] and [[file:~/of11softswitch.bme/include/openflow/bme-ext.h::54][here]], and their very short implementations are
-[[~/of11softswitch.bme/udatapath/dp_exp_bme.c::761][here]], and [[~/of11softswitch.bme/udatapath/dp_exp_bme.c::209][here]].
+[[~/of11softswitch.bme/udatapath/dp_exp_bme.c::769][here]], and [[~/of11softswitch.bme/udatapath/dp_exp_bme.c::209][here]].
 
 If you interested in the network coding scenario, first you
-should check out the simple [[file:butterfly_app.cc::87][MPLS based controller]].  The [[file:butterfly_app.cc::220][NC
-controller]] is almost the same, it just uses three MPLS headers
-and three experimenter actions: [[~/of11softswitch.bme/udatapath/dp_exp_bme.c::761][set_mpls_label_from_counter]],
-[[~/of11softswitch.bme/udatapath/dp_exp_bme.c::761][xor_encode, and xor_decode]].
+should check out the simple [[file:butterfly_app.cc::87][MPLS based controller]].  The
+[[file:butterfly_app.cc::220][NC_controller]] is almost the same, it just uses three MPLS headers
+and three experimenter actions: [[~/of11softswitch.bme/udatapath/dp_exp_bme.c::360][set_mpls_label_from_counter]],
+[[~/of11softswitch.bme/udatapath/dp_exp_bme.c::617][xor_encode, and xor_decode]].
  
 * Contact
 
