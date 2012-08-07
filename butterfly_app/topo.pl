@@ -216,6 +216,7 @@ sub get_stats {
   my %db;
   my $cmd = 'stats-port';
   my $var = 'tx_pkt';
+  my $var_recv  = 'rx_pkt';
 
   my @list = grep {/tmp\/(s[0-9]+)$/} @sw;
   @list = keys %ip_addr
@@ -239,6 +240,19 @@ sub get_stats {
       while ($line =~ m/$var="(.*?)",/) {
 	$db{$node}->{$port++} = $1;
 	$line =~ s/$var//;
+      }
+      $port = 0;
+      while ($line =~ m/$var_recv="(.*?)",/) {
+	my $val = $1;
+	my $p   = $port++;
+	$line =~ s/$var_recv//;
+	next unless defined $ports{$node};
+	my $neighbor = $ports{$node}[$p];
+	next unless defined $neighbor;
+	next unless $neighbor =~ m/^h/;
+
+	$db{$node}->{$p} += $val;
+	#print "node:$node, neighbor:$neighbor, port:$p, val:$val\n";
       }
     }
     close IN;
