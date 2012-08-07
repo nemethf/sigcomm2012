@@ -30,6 +30,7 @@ use Glib qw(TRUE FALSE);
 
 my $REMOTE = grep {/remote/} @ARGV;
 my $SILENT = scalar (grep {/verbose/} @ARGV) == 0;
+my $LARGE  = scalar (grep {/large/} @ARGV) != 0;
 
 open PID, '>/tmp/traffic_monitor.pid';
 print PID $$;
@@ -37,6 +38,9 @@ close PID;
 
 my $LINE;
 my $root;
+
+my $NODE_IN_PIXELS = 30;
+$NODE_IN_PIXELS = 60 if $LARGE;
 
 my %nodes = ();
 
@@ -94,10 +98,11 @@ sub my_print {
 
 sub set_nodes {
   my ($pos) = @_;
+  my $dist = 2 * $NODE_IN_PIXELS;
 
   foreach my $node (keys %$pos) {
-      $nodes{$node}[0] = -25 + 55 * $pos->{$node}[0];
-      $nodes{$node}[1] = -25 + 55 * $pos->{$node}[1];
+      $nodes{$node}[0] = -$NODE_IN_PIXELS + $dist * $pos->{$node}[0];
+      $nodes{$node}[1] = -$NODE_IN_PIXELS + $dist * $pos->{$node}[1];
   }
 }
 
@@ -110,8 +115,8 @@ sub add_link {
         $root, FALSE,
         [ $x1, $y1,
           $x2, $y2 ],
-        'stroke-color' => 'midnightblue',
-        'line-width' => 3,
+        'stroke-color' => 'blue',
+        'line-width' => $NODE_IN_PIXELS / 10,
         'start-arrow' => FALSE,
         'end-arrow' => FALSE,
         'arrow-tip-length' => 3,
@@ -147,6 +152,14 @@ sub remove_link {
   delete $links{"$dst,$src"};
 }
 
+sub remove_links {
+  foreach my $node_src (keys %ports) {
+    foreach my $node_dst (@{$ports{$node_src}}) {
+      remove_link($root, $node_src, $node_dst);
+    }
+  }
+}
+
 sub add_links {
   foreach my $node_src (keys %ports) {
     foreach my $node_dst (@{$ports{$node_src}}) {
@@ -168,12 +181,18 @@ sub add_links {
 sub add_node {
   my ($root, $x, $y, $name) = @_;
 
+  if (defined($nodes{$name}[2])) {
+    my $node = $nodes{$name}[2];
+    my $i = $root->find_child($node);
+    $root->remove_child($i);
+  }
+
   my $group = Goo::Canvas::Group->new($root);
 
-  my $x1 = $x - 15;
-  my $y1 = $y - 15;
+  my $x1 = $x - $NODE_IN_PIXELS / 2;
+  my $y1 = $y - $NODE_IN_PIXELS / 2;
   my $rect = Goo::Canvas::Rect->new(
-    $group, $x1, $y1, 30, 30,
+    $group, $x1, $y1, $NODE_IN_PIXELS, $NODE_IN_PIXELS,
     'line-width' => 2,
     'radius-x' => 2,
     'radius-y' => 1,
@@ -183,9 +202,10 @@ sub add_node {
   $rect->signal_connect('button-press-event',
 			\&on_rect_button_press);
 
+  my $size = $NODE_IN_PIXELS / 3;
   my $text = Goo::Canvas::Text->new(
     $group, $name, $x, $y, -1, 'center',
-    'font' => 'Sans 10',
+    'font' => "Sans $size",
   );
 
   $nodes{$name}[2] = $group;
@@ -266,19 +286,16 @@ sub change_layout {
   }
 
   set_nodes($pos_new);
+  my $dist = 2 * $NODE_IN_PIXELS;
   foreach my $node (keys %$pos_new) {
     # should be relative to the ORIGINAL position.
-    my $x = 55 * ($pos_new->{$node}[0] - $pos_nc{$node}[0]);
-    my $y = 55 * ($pos_new->{$node}[1] - $pos_nc{$node}[1]);
+    my $x = $dist * ($pos_new->{$node}[0] - $pos_nc{$node}[0]);
+    my $y = $dist * ($pos_new->{$node}[1] - $pos_nc{$node}[1]);
 
     my $rect = $nodes{$node}[2];
     $rect->animate($x, $y, 1, 0, TRUE, 3000, 100, 'freeze');
   }
-  foreach my $node_src (keys %ports) {
-    foreach my $node_dst (@{$ports{$node_src}}) {
-      remove_link($root, $node_src, $node_dst);
-    }
-  }
+  remove_links();
 
   $timer_link = Glib::Timeout->add(3 * 1000, \&add_links);
 }
@@ -307,6 +324,7 @@ sub update {
       $num_ports ++;
     }
   }
+  change_layout();
   return TRUE
     unless $num_ports > 0;
 
@@ -315,7 +333,7 @@ sub update {
     if ($link->{diff} > $threshold) {
       $link->set('stroke-color' => 'red');
     } else {
-      $link->set('stroke-color' => 'black');
+      $link->set('stroke-color' => 'blue');
     }
     $link->{diff} = 0;
   }
@@ -325,9 +343,38 @@ sub update {
   return TRUE;
 }
 
+sub repaint_window {
+  my ($window, $canvas, $root) = @_;
+
+  my ($width, $height) = $window->get_size;
+  my $w = int($width / 12 / 5) * 5;
+  my $h = int($height / 6 / 5)  * 5;
+  $NODE_IN_PIXELS = $w > $h? $h: $w;
+  my_print "w,h:$width,$height,$NODE_IN_PIXELS\n";
+
+  my $x_len = 12 * $NODE_IN_PIXELS;
+  my $y_len =  6 * $NODE_IN_PIXELS;
+  #$canvas->set_size_request($x_len, $y_len);
+  $canvas->set_bounds(0, 0, $x_len, $y_len);
+
+  set_nodes(\%pos_nc);
+  remove_links();
+  add_links();
+
+  foreach my $node (keys %nodes) {
+    my $x = $nodes{$node}[0];
+    my $y = $nodes{$node}[1];
+
+    add_node($root, $x, $y, $node);
+  }
+}
+
+my $x_len = 12 * $NODE_IN_PIXELS;
+my $y_len =  6 * $NODE_IN_PIXELS;
 my $window = Gtk2::Window->new('toplevel');
 $window->signal_connect('delete_event' => sub { Gtk2->main_quit; });
-$window->set_default_size(330, 180);
+$window->signal_connect('size-allocate' => \&on_size_allocate);
+$window->set_default_size($x_len, $y_len);
 $window->set_title("Traffic monitor");
 
 my $swin = Gtk2::ScrolledWindow->new;
@@ -335,20 +382,12 @@ $swin->set_shadow_type('in');
 $window->add($swin);
 
 my $canvas = Goo::Canvas->new();
-$canvas->set_size_request(330, 180);
-$canvas->set_bounds(0, 0, 330, 180);
+$canvas->set_size_request($x_len, $y_len);
+$canvas->set_bounds(0, 0, $x_len, $y_len);
 $swin->add($canvas);
 $root = $canvas->get_root_item();
 
-set_nodes(\%pos_nc);
-add_links();
-
-foreach my $node (keys %nodes) {
-  my $x = $nodes{$node}[0];
-  my $y = $nodes{$node}[1];
-
-  add_node($root, $x, $y, $node);
-}
+repaint_window($window, $canvas, $root);
 
 my $timer = Glib::Timeout->add(2 * 1000, \&update);
 
@@ -358,4 +397,9 @@ Gtk2->main;
 sub on_rect_button_press {
     my_print "Rect item pressed!\n";
     return TRUE;
+}
+
+sub on_size_allocate {
+  repaint_window($window, $canvas, $root);
+  return TRUE;
 }
